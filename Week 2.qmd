@@ -1,0 +1,159 @@
+---
+title: "Week 2"
+author: Chunjian Zhang
+format: 
+  html:
+    theme: cerulean
+  pdf: default
+---
+
+# Introduction
+
+In this tutorial we are looking at the Avian Influenza cases detected globally since 1997.
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r load-libraries, message=FALSE, warning=FALSE}
+library(rmarkdown)
+library(knitr)
+library(tidyverse)
+library(readr)
+library(kableExtra)
+library(ggplot2)
+library(dplyr)
+```
+
+[US CDC](https://www.cdc.gov/bird-flu/php/avian-flu-summary/chart-epi-curve-ah5n1.html)
+
+## Reading Avian Influenza Data
+
+```{r Reading-data, echo=TRUE, warning=FALSE, message=FALSE}
+dat <- read_csv("avian_influenza_numbers.csv")
+```
+
+```{r head-data}
+head(dat)
+```
+
+```{r head-data-10}
+head(dat, 10)
+```
+
+```{r glimpse-data}
+glimpse(dat)
+```
+
+```{r str-data}
+str(dat)
+```
+
+This avian influenza dataset contains `r nrow(dat)` rows of records and `r ncol(dat)` columns of variables.
+
+### Why is it important to know the dimension of your dataset?
+
+Knowing this dataset dimensions helps assess data completeness, plan memory usage, and identify potential data entry errors.
+
+### What are the variable names in the dataset?
+
+```{r var-names}
+names(dat)
+```
+
+### Variable Explanations
+- `date`: Temporal stamp of avian influenza case documentation, employed for longitudinal trend analysis.
+- `cases`: Quantified count of confirmed avian influenza cases, representing the epidemic magnitude at discrete time points.
+
+```{r data-cleaned, echo=TRUE, warning=FALSE, message=FALSE}
+data_cleaned <- dat |>
+  select(Month, Australia, Egypt, `United States`)  
+```
+
+```{r inspect-vars}
+glimpse(data_cleaned)
+```
+- **`Month`**: `<chr>` (character/string type), storing dates in the format `"1/1/1997"`, `"2/1/1997"`, etc.
+- **`Australia`**: `<dbl>` (double/numeric type), storing the count of avian influenza cases in Australia (all values are `0` in the preview).
+- **`Egypt`**: `<dbl>` (double/numeric type), storing the count of avian influenza cases in Egypt (all values are `0` in the preview).
+- **`United States`**: `<dbl>` (double/numeric type), storing the count of avian influenza cases in the United States (all values are `0` in the preview).
+
+---
+
+- ✅ **Case count variables (`Australia`, `Egypt`, `United States`)**: Correct. They are numeric (`<dbl>`), which is appropriate for counting cases and performing statistical calculations.
+- ⚠️ **`Month` variable**: Incorrect as currently stored. It is a `<chr>` (text) type, but it represents date information. It should be converted to a `<date>` type using `lubridate::mdy()` to enable time-series operations (e.g., sorting, filtering by year/month).
+
+```{r convert-date}
+library(lubridate)
+data_monthly <- data_cleaned |>
+    mutate(monthdate = lubridate::mdy(Month))
+
+data_monthly %>% filter(is.na(monthdate))
+```
+```{r remove-invalid}
+data_monthly <- data_monthly |> filter(!is.na(monthdate))
+```
+
+```{r check-dim}
+# Dimensions of the cleaned dataset
+dim(data_monthly)
+# Dimensions of the original dataset (replace "dat" with your raw data object)
+dim(data_cleaned)
+```
+We have lost 32 cases for which we did not have information about age or gender.
+
+```{r summary-table}
+data_monthly |>
+    select(Egypt, Australia, `United States`) |>
+    summary() |>
+    kable(caption = "COVID-19 Age Summary")
+```
+
+```{r}
+library(ggplot2)
+data_monthly |>
+    ggplot(aes(x=Egypt)) +
+    geom_histogram(binwidth = 5) +
+    labs(x="Case counts in Egypt", y="")
+```
+
+```{r}
+data_monthly |>
+    # Drop the old month column
+    select(!Month) |>
+    # Pivot everything except monthdate
+    pivot_longer(!monthdate) |>
+    ggplot(aes(x=value, fill = name)) +
+    geom_histogram(binwidth = 5, position = "dodge") +
+    labs(x="Case counts of Avian Influenza", y="")
+```
+
+```{r}
+data_monthly |>
+    # Drop the old month column
+    select(!Month) |>
+    # Pivot everything except monthdate
+    pivot_longer(!monthdate) |>
+    ggplot(aes(x=monthdate, y = value, fill = name)) +
+    geom_col() +
+    facet_wrap(~name, scales="free") +
+    labs(x="Case counts of Avian Influenza", y="")
+```
+
