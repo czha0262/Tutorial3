@@ -3,3 +3,5 @@
 Learning Git
 
 This repository is an example about how to integrate GitHub with Rstudio
+
+This is a section
